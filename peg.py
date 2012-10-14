@@ -36,8 +36,14 @@ class Grammar(object):
     def __radd__(self, other):
         return self.Seq([other,self])
 
-    def __or__(self, other):
+    def __div__(self, other):
         return self.Choice([self, other])
+
+    def __rdiv__(self, other):
+        return self.Choice([self, other])
+
+    def __or__(self, other):
+        return self.Choice([other, self])
 
     def __ror__(self, other):
         return self.Choice([other, self])
@@ -89,6 +95,10 @@ class Grammar(object):
     def Rec1(self):
         return RecursiveRule()
 
+    @classmethod  
+    def Delay(self):
+        return DelayRule()
+
     @classmethod
     def Char(self, c):
         if isinstance(c, basestring):
@@ -110,12 +120,7 @@ class Grammar(object):
     def Regex(self, re):
         return RegexRule(re)
     
-    @classmethod
-    def Pattern(self, s):
-        if s == "":
-            print "Pattern is empty"
-        return RegexRule(s)
-    
+   
     @classmethod
     def AnyChar(self):
         return self.Char(lambda c: True)
@@ -124,7 +129,7 @@ class Grammar(object):
     def AdvanceWhileNot(self,r):
         if (r is None):
             print "Cannot build this AdvanceWhileNot rule without any parser"
-        return ZeroOrMore(Seq([Not(r), AnyChar]))
+        return ZeroOrMoreRule(self.Seq([self.Not(r), self.AnyChar()]))
     
 """
 ================================================================================
@@ -191,7 +196,8 @@ class Node(object):
 
     def __str__(self):
         t = self.text()
-        return "Node %s Text: '%s'" % (self.label,t)
+        #return "Nodes %s Text: '%s'" % (self.label,t)
+        return "%s->'%s'" % (self.label,t)
 
     def __repr__(self):
         t = self.text()
@@ -263,7 +269,7 @@ class Rule(object):
 
     def __init__(self, rules = None):
         self.children = []
-        self._name = ''
+        self._name = 'no_name'
         self.is_reccursive = False
 
         if rules is None:
@@ -271,20 +277,23 @@ class Rule(object):
         elif isinstance(rules, (list, tuple)):
             self.children = rules
         else:
-            self.children.append( rules)
+            self.children.append(rules)
 
     # Operator overloading
     def __add__(self, other):
         return Grammar.Seq([self, other ])
 
     def __radd__(self, other):
-        return Grammar.Seq([other,self])
+        return Grammar.Seq([self,other])
+
+    def __div__(self, other):
+        return Grammar.Seq([self, other ])
 
     def __or__(self, other):
         return Grammar.Choice([self, other])
 
     def __ror__(self, other):
-        return Grammar.Choice([other, self])
+        return Grammar.Choice([self,other ])
 
     # Getters & Setters  
     @property
@@ -351,14 +360,17 @@ class Rule(object):
         
         return thestate.nodes
 
-    def __add__(self,other):
-        return Grammar().Seq(other)
+    # def __add__(self,other):
+    #     return Grammar().Seq(other)
     
-    def __div__(self,other):
-        return Grammar().Choice(other)
+    # def __div__(self,other):
+    #     return Grammar().Choice(other)
     
     def __str__(self):
         return 'Rule Generic'
+
+    def __repr__(self):
+        return "%s" % (self.name)
 
 """
 ================================================================================
@@ -402,25 +414,25 @@ class NodeRule(Rule):
         self._name = 'NodeRule'
         self.useCache = True #False #True
 
-    def __add__(self, other):
-        x = Grammar.Seq([self, other ])
-        x.useCache = self.useCache
-        x.name = self.name
-        return x
+    # def __add__(self, other):
+    #     x = Grammar.Seq([self, other ])
+    #     x.useCache = self.useCache
+    #     x.name = self.name
+    #     return x
 
-    def __radd__(self, other):
-        x = Grammar.Seq([other,self])
-        x.useCache = self.useCache
-        x.name = self.name
-        return x
+    # def __radd__(self, other):
+    #     x = Grammar.Seq([other,self])
+    #     x.useCache = self.useCache
+    #     x.name = self.name
+    #     return x
 
-    def __or__(self, other):
-        x = Grammar.Choice([self, other ])
-        x.useCache = self.useCache
-        x.name = self.name
-        return x
+    # def __div__(self, other):
+    #     x = Grammar.Choice([self, other ])
+    #     x.useCache = self.useCache
+    #     x.name = self.name
+    #     return x
 
-    __ror__ = __or__
+    # #__ror__ = __or__
 
     def internalMatch(self,thestate):
         if self.useCache:
@@ -617,13 +629,15 @@ class RegexRule(Rule):
         self.pat = self.reg.pattern
 
     def internalMatch(self,thestate):
-
+        # try to find the given pattern at the beginning of the input
         m = self.reg.match(thestate.inputs, thestate.pos)
         #print "Regexp search gave %s" %(m)
-        if (m is None or m.start() != thestate.pos):
+        #if (m is None or m.start() != thestate.pos):
+        if m is None or m is False: # or m.start() != thestate.pos:
             return False
         else:
-            thestate.pos += len(thestate.inputs[m.start():m.end()])
+            decal = len(thestate.inputs[m.start(0):m.end(0)])
+            thestate.pos += decal #len(thestate.inputs[m.start(0):m.end(0)])
             return True
 
     def __str__(self):
@@ -635,14 +649,14 @@ class RecursiveRule(Rule):
         self.ruleGen  = None # It is a def
         self.is_reccursive = True
         self.children = []
-        self._name = 'NodeRule'
+        self._name = 'RecursiveRule1'
 
     def set(self, p):
-        self.ruleGen  = p() # The reference of the grammar to match
+        self.ruleGen  = p # The reference of the grammar to match
     
     def internalMatch(self,parser_state):
         if len(self.children) == 0:
-            #print "--> Adding a child", self.ruleGen
+            print "--> Adding a child", self.ruleGen
             self.children.append( self.ruleGen ) # By calling the def, returns the grammar rule
         return self.child.match(parser_state)
     
@@ -664,4 +678,21 @@ class RecursiveRule2(Rule):
         return self.child.match(parser_state)
     
     def __str__(self):
-        return "RecursiveRule "
+        return "RecursiveRule2"
+
+class DelayRule(Rule):
+    def __init__(self):
+        self.my_rule = None
+        self.children = []
+        self.name = "Delayed"
+
+    def set(self,p):
+        self.my_rule  = p
+
+    def internalMatch(self,parser_state):
+        if len(self.children) == 0:
+            self.children.append(self.my_rule)
+        return self.child.match(parser_state)
+
+    def __str__(self):
+        return "RecursiveRule2"
