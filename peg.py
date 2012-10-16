@@ -3,7 +3,7 @@
 
 """ 
     A port of Christopher Diggin's Jigsaw C# 4.0 project:
-    http:#code.google.com/p/jigsaw-library/
+    
 
     Christopher Diggin's nice article explaining how to build a grammar 
     is on the CodeProject's site:
@@ -88,14 +88,6 @@ class Grammar(object):
         return StringRule(s)
     
     @classmethod  
-    def Rec2(self, ruleGen):
-        return RecursiveRule2(ruleGen)
-
-    @classmethod  
-    def Rec1(self):
-        return RecursiveRule()
-
-    @classmethod  
     def Delay(self):
         return DelayRule()
 
@@ -174,8 +166,8 @@ class Node(object):
         # Returns all child nodes with the given label
         res = []
         for el in self.nodes:
-            if el.label == self.label:
-                res += el
+            if el.label == label:
+                res.append(el)
         return res
 
     def getNode(self,label):
@@ -188,10 +180,10 @@ class Node(object):
     
 
     def descendants(self):
-        res = ''
+        res = []
         for n in self.nodes:
             for d in n.descendants():
-                res += n 
+                res.append(n)
         return res
 
     def __str__(self):
@@ -414,41 +406,11 @@ class NodeRule(Rule):
         self._name = 'NodeRule'
         self.useCache = True #False #True
 
-    # def __add__(self, other):
-    #     x = Grammar.Seq([self, other ])
-    #     x.useCache = self.useCache
-    #     x.name = self.name
-    #     return x
-
-    # def __radd__(self, other):
-    #     x = Grammar.Seq([other,self])
-    #     x.useCache = self.useCache
-    #     x.name = self.name
-    #     return x
-
-    # def __div__(self, other):
-    #     x = Grammar.Choice([self, other ])
-    #     x.useCache = self.useCache
-    #     x.name = self.name
-    #     return x
-
-    # #__ror__ = __or__
-
     def internalMatch(self,thestate):
         if self.useCache:
             return self.internalMatchWithCaching(thestate)
         else:
-            return self.internalMatchWithoutCaching(thestate)
-        # bool
-        # try:
-        #     if self.useCache:
-        #         return self.internalMatchWithCaching(thestate)
-        #     else:
-        #         return self.internalMatchWithoutCaching(thestate)
-            
-        # except:
-        #     print "While parsing rule %s in NodeRule class, an error occured:\n" % (self.name)
-        
+            return self.internalMatchWithoutCaching(thestate)       
     
     def internalMatchWithCaching(self,thestate):
         start = thestate.pos
@@ -643,43 +605,6 @@ class RegexRule(Rule):
     def __str__(self):
         return "Regexp: %s"%(self.pat)
     
-class RecursiveRule(Rule):
-    def __init__(self):
-        Rule.__init__(self)
-        self.ruleGen  = None # It is a def
-        self.is_reccursive = True
-        self.children = []
-        self._name = 'RecursiveRule1'
-
-    def set(self, p):
-        self.ruleGen  = p # The reference of the grammar to match
-    
-    def internalMatch(self,parser_state):
-        if len(self.children) == 0:
-            print "--> Adding a child", self.ruleGen
-            self.children.append( self.ruleGen ) # By calling the def, returns the grammar rule
-        return self.child.match(parser_state)
-    
-    def __str__(self):
-        return "RecursiveRule "
-
-class RecursiveRule2(Rule):
-    def __init__(self, ruleGen):
-        Rule.__init__(self)
-        self.ruleGen  = ruleGen # It is a def
-        self.is_reccursive = True
-        self.children = []
-        self._name = 'NodeRule'
-    
-    def internalMatch(self,parser_state):
-        if len(self.children) == 0:
-            #print "--> Adding a child", self.ruleGen
-            self.children.append( self.ruleGen() ) # By calling the def, returns the grammar rule
-        return self.child.match(parser_state)
-    
-    def __str__(self):
-        return "RecursiveRule2"
-
 class DelayRule(Rule):
     def __init__(self):
         self.my_rule = None

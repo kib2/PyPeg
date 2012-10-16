@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 from peg import *
+from factor_eval import *
+
 g = Grammar()
 
 WS              = g.Regex('\s*')
@@ -25,17 +27,48 @@ Define          = g.Node("Define",g.MatchString("def") + WS + Symbol + WS + Quot
 CListTerm.set( (Define | Atom | Quotation) + WS)
 Term.set( (Define | Atom | Quotation | CList) + WS)
 
-res= Terms.parse('5 10 div .')
-#res= Terms.parse('def neg [0 swap -]')
+toTest = [
+"10 5 div . def neg [0 swap -] 12 neg .",
+"def plus5 [5 +] 17 plus5 .",
+"5 10 div 50 100 div eq? .",
+"3 6 mul 18 eq?",
+"-4 16 sub",
+"-4 abs",
+'"abcd ef" .',
+'pop 3 dup',
+'5 1 swap',
+'clear',
+'[3 4 +] call',
+'clear',
+'def neg [0 swap -]',
+'def sq [dup *]',
+'clear',
+'13 sq .',
+'clear',
+'8 ["hello" .] times',
+'clear',
+'1 2 4 [+] keep .',
+'[1 2 3] list .',
+'clear',
+'[1 2 3] list [2 *] map [1 add] map .',
+'1 0 lteq ["Yes"] ["No"] if',
+'9 5 n 9',
+'[1 2 3] list [sum] call .',
+'[1 2 3] list [len] call .',
+'[1 2 3] list [sum] [len] bi div .',
+'clear',
+'"john" "John" swap upper swap upper eq? .',
+'"john" "John" [ upper ] bi@ eq? .',
+'{ 1 2 3 } [2 *] map [1 add] map .'
+]
 
-for el in res:
-    print el
-    for sel in el.nodes:
-        print "--SUB: ",sel
-        for ssel in sel.nodes:
-            print "----SUBSUB: ",ssel
-            for sssel in ssel.nodes:
-            	print "------SUBSUB: ",sssel
-print "RESULT:  ", res , "\n"
+fe = FactorEvaluator()
+i=0
 
+for morceau in toTest:
+    res      = Terms.parse(morceau)
+    computed = fe.eval_me(res[i])
+    comp2    = fe.get_last()
 
+    print "Test number:%s\nEval:'%s'\n... ---> Result: %s\n... ---> Stack: %s\n"%(i+1,morceau, comp2, fe.Values)
+    i += 1
